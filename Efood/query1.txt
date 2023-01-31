@@ -1,0 +1,82 @@
+
+with br_freq as (
+  select distinct city, sum (orders_by_user_breakfast)over (partition by city order by city)/count (user_id) over (partition by city order by city) as breakfast_freq, 
+  from(select distinct city , user_id ,count (order_id) over (partition by user_id,city) as orders_by_user_breakfast
+
+FROM `efood2022-376015.main_assessment.orders`
+where  cuisine='Breakfast')
+
+),
+efood_freq as (select distinct city,  sum (orders_by_user)over (partition by city order by city)/count (user_id) over (partition by city order by city)as efood_freq
+from (select  distinct  city , user_id ,count (order_id) over (partition by user_id,city) as orders_by_user
+
+FROM `efood2022-376015.main_assessment.orders`)
+
+),
+all_br_users as (
+  select distinct city, count (distinct user_id) over (partition by city ) as total
+  FROM `efood2022-376015.main_assessment.orders`
+where  cuisine='Breakfast'
+),
+b as(select distinct city,user_id,orders_per_user
+from(
+select distinct city, user_id,count (distinct order_id) over( partition by user_id, city) as orders_per_user
+FROM `efood2022-376015.main_assessment.orders`
+where  cuisine='Breakfast') a
+where orders_per_user >3), 
+
+freq_breakf as (
+select distinct city ,total_users/total as breakfast_users3freq_perc from(
+select distinct b.city ,count (user_id) over (partition by b.city order by b.city) as total_users,total
+from b
+
+inner join all_br_users on b.city= all_br_users.city)),
+
+
+all_total_users as (
+  select distinct city, count (distinct user_id) over (partition by city ) as total
+  FROM `efood2022-376015.main_assessment.orders`
+),
+c as(select distinct city,user_id,orders_per_user
+from(
+select distinct city, user_id,count (distinct order_id) over( partition by user_id, city) as orders_per_user
+FROM `efood2022-376015.main_assessment.orders`
+) 
+where orders_per_user >3), 
+
+freq_ef as (
+select distinct city ,total_users/total as efoodusers3freq_perc from(
+select distinct c.city ,count (user_id) over (partition by c.city order by c.city) as total_users,total
+from c
+
+inner join all_total_users on c.city= all_total_users.city))
+
+
+select br.city,breakfast_basket,efood_basket,breakfast_freq,efood_freq.efood_freq,
+ breakfast_users3freq_perc,efoodusers3freq_perc
+
+from(
+SELECT  city, sum(amount)/count(order_id) as breakfast_basket,
+count(order_id) as breakfast_orders,
+count (user_id) as breakfast_users
+
+
+     
+                    FROM `efood2022-376015.main_assessment.orders`
+                    where cuisine='Breakfast'
+                    group by city
+                    having count(order_id)>=1000
+                    order by count(order_id) desc
+                    ) br
+ 
+inner join   (SELECT distinct city, sum(amount)/count(order_id) as efood_basket,
+             count (user_id) as efood_users
+                    FROM `efood2022-376015.main_assessment.orders`
+                    group by city
+                    having count(order_id)>=1000
+                    ) other on      br.city=other.city    
+inner join br_freq on br_freq.city=br.city
+inner join efood_freq on efood_freq.city=other.city  
+inner join freq_breakf on freq_breakf.city=br.city 
+inner join freq_ef on freq_ef.city=other.city 
+order by  breakfast_orders desc    limit 5     

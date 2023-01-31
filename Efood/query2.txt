@@ -1,0 +1,13 @@
+ with all_city_orders as (select distinct city, count(order_id)over (partition by city) all_orders
+FROM `efood2022-376015.main_assessment.orders`)
+ 
+ 
+ 
+ select  city, ARRAY_AGG(STRUCT(user_id, perc) ORDER BY perc DESC LIMIT 10) data from (select distinct city,user_id,perc
+ from (select distinct city,user_id,orders_by_user_breakfast/all_orders as perc from( select  a.city,a.user_id,all_orders, count (order_id) over (partition by a.user_id,a.city) as orders_by_user_breakfast
+FROM `efood2022-376015.main_assessment.orders` a
+inner join all_city_orders on all_city_orders.city=a.city)as t )
+
+
+ )
+group by city
